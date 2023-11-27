@@ -1,6 +1,8 @@
 package game
 
 import (
+	"fmt"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -13,7 +15,7 @@ type client struct {
 	receive chan []byte
 
 	// room is the room this client is chatting in.
-	room *room
+	room *Room
 }
 
 func (c *client) read() {
@@ -23,7 +25,8 @@ func (c *client) read() {
 		if err != nil {
 			return
 		}
-		c.room.forward <- msg
+		fmt.Printf("message received from %v, message: %v\n", string(c.socket.RemoteAddr().String()), string(msg))
+		c.room.Forward <- msg
 	}
 }
 
@@ -34,5 +37,6 @@ func (c *client) write() {
 		if err != nil {
 			return
 		}
+		fmt.Printf("message sent from %v, message: %v\n", string(c.socket.RemoteAddr().String()), string(msg))
 	}
 }
