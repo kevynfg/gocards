@@ -1,6 +1,6 @@
 # Project gocards
 
-One Paragraph of project description goes here
+card game to search for rooms and duel another players, gain new or duplicated cards as reward
 
 ## Getting Started
 
