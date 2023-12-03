@@ -14,6 +14,7 @@ import (
 
 type Service interface {
 	Health() map[string]string
+	CreateUserTable()
 }
 
 type service struct {
@@ -35,6 +36,7 @@ func New() Service {
 		log.Fatal(err)
 	}
 	s := &service{db: db}
+	s.CreateUserTable()
 	return s
 }
 
@@ -51,3 +53,21 @@ func (s *service) Health() map[string]string {
 		"message": "It's healthy",
 	}
 }
+
+func (s *service) CreateUserTable() {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	_, err := s.db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS users (
+			id bigserial PRIMARY KEY,
+			username VARCHAR UNIQUE NOT NULL,
+			password VARCHAR NOT NULL,
+			email VARCHAR(355) UNIQUE NOT NULL,
+			created_at TIMESTAMP NOT NULL
+		);
+	`)
+	if err != nil {
+		log.Fatal(err)
+	}
+} 

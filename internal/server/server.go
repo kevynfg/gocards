@@ -23,7 +23,7 @@ func NewServer() *http.Server {
 		port: port,
 		db:   database.New(),
 	}
-
+	
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", NewServer.port),
 		Handler:      NewServer.RegisterRoutes(),

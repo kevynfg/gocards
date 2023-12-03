@@ -63,8 +63,10 @@ func (r *Room) Run() {
 				select {
 				case client.receive <- msg:
 				default:
-					delete(r.Clients, client)
-					close(client.receive)
+					if !r.Clients[client] {
+						delete(r.Clients, client)
+						close(client.receive)
+					}
 				}
 			}
 		}
@@ -87,6 +89,7 @@ func (r *Room) ServeHTTP(ctx *gin.Context) {
 	}
 	
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	
 	socket, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		log.Fatal("ServeHTTP:", err)
