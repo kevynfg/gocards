@@ -2,13 +2,18 @@ package game
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	qrcode "github.com/skip2/go-qrcode"
 )
+
+var url = "http://localhost:8080/ws/room/join/"
 
 type Room struct {
 
@@ -59,7 +64,7 @@ func (r *Room) Run() {
 		case msg := <-r.Forward:
 			fmt.Printf("room id: %v, clients: %v\n", r.Id, r.Clients)
 			for client := range r.Clients {
-				fmt.Printf("sending message to client id: %v on room: %v\n", client.room.Id, r.Id)
+				fmt.Printf("sending to client: %v on room id: %v with message: %v\n", client.socket.RemoteAddr().String(), client.room.Id, string(msg))
 				select {
 				case client.receive <- msg:
 				default:
@@ -80,38 +85,66 @@ const (
 	messageBufferSize = 256
 )
 
-var upgrader = &websocket.Upgrader{ReadBufferSize: socketBufferSize, WriteBufferSize: socketBufferSize}
+var upgrader = &websocket.Upgrader{
+	ReadBufferSize:  socketBufferSize,
+	WriteBufferSize: socketBufferSize,
+	CheckOrigin:     func(r *http.Request) bool { return true }, // Allow all origins
+}
+
+func (c *client) sendPNGFile() {
+	err := qrcode.WriteFile(url+c.room.Id, qrcode.Medium, 256, c.room.Id+".png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		err := os.Remove(c.room.Id + ".png")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	file, err := os.Open(c.room.Id + ".png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = c.socket.WriteMessage(websocket.BinaryMessage, fileBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func (r *Room) ServeHTTP(ctx *gin.Context) {
 	if r.Id == "" {
 		log.Fatal("room id is required")
 		return
 	}
-	
+
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	
 	socket, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
-		log.Fatal("ServeHTTP:", err)
+		log.Fatal("ServeHTTP failed to upgrade:", err)
 		return
 	}
-	
-	formatted := fmt.Sprintf("socket address connected %s", socket.RemoteAddr())
-	fmt.Println(formatted)
-	
+
+	socket.WriteMessage(websocket.TextMessage, []byte("oi"))
 	client := &client{
-		socket: socket,
+		socket:  socket,
 		receive: make(chan []byte, messageBufferSize),
-		room: r,
+		room:    r,
 	}
-	
+
 	r.Join <- client
-	
-	defer func() { 
+	defer func() {
 		r.Leave <- client
 		fmt.Println("client left", client)
 	}()
-	
+
 	go client.write()
 	client.read()
 }

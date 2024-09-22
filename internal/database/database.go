@@ -62,7 +62,6 @@ func (s *service) CreateUserTable() {
 		CREATE TABLE IF NOT EXISTS users (
 			id bigserial PRIMARY KEY,
 			username VARCHAR UNIQUE NOT NULL,
-			password VARCHAR NOT NULL,
 			email VARCHAR(355) UNIQUE NOT NULL,
 			created_at TIMESTAMP NOT NULL
 		);
@@ -70,4 +69,4 @@ func (s *service) CreateUserTable() {
 	if err != nil {
 		log.Fatal(err)
 	}
-} 
+}
